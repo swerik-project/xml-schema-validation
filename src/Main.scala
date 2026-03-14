@@ -2,12 +2,6 @@ package main
 import scalatags.Text.all._
 import scala.math.min
 import mainargs.{main, ParserForMethods}
-/*
-object Main {
-
-  def main(args: Array[String]): Unit = println("args ", args(0))
-}
-*/
 import javax.xml.XMLConstants
 import javax.xml.transform.stream.StreamSource
 import javax.xml.validation.{Schema, SchemaFactory, Validator}
@@ -18,65 +12,83 @@ import java.net.URL
 object Main {
 
   def main(args: Array[String]): Unit = {
-    val results = validate(args.drop(1), args.head)
-    println(results)
+    if (args.length < 2) {
+      Console.err.println("Usage: mill main.run <schema.xsd> <file1.xml> [file2.xml ...]")
+      sys.exit(2)
+    }
+
+    val exitCode = validate(args.tail, args.head)
+    sys.exit(exitCode)
+
   }
 
+  def validate(xmlFiles: Array[String], xsdFile: String): Int = {
 
-  def validate(xmlFiles: Array[String], xsdFile: String): Unit ={
-    var exceptions = List[String]()
     try {
       val schemaFactory = SchemaFactory.newInstance(XMLConstants.W3C_XML_SCHEMA_NS_URI)
-      //val url = this.getClass().getResource(xsdFile)//ClassLoader.getSystemResource(xsdFile)
-      val url = new URL("file://" + System.getProperty("user.dir") + "/" + xsdFile)
-      println("Schema: " + url)
-      val streamSource = new StreamSource(url.openStream())
-      val schema: Schema = schemaFactory.newSchema(streamSource)
 
-      val validator = schema.newValidator()
-      validator.setErrorHandler(new ErrorHandler() {
-        @Override
-        def warning(exception:SAXParseException){
+      val schemaUrl =
+        new URL("file://" + System.getProperty("user.dir") + "/" + xsdFile)
 
-          exceptions = exception.getMessage  :: exceptions
-        }
-        @Override
-        def fatalError(exception:SAXParseException ) {
-          exceptions = exception.getMessage  :: exceptions
-        }
-        @Override
-        def error(exception:SAXParseException ) {
-          exceptions = exception.getMessage  :: exceptions
-        }
-      });
+      println("Schema: " + schemaUrl)
 
-      def validateFile(xmlFile: String) = {
-        println("Validate: " + xmlFile)
-        exceptions = List[String]()
-        val xmlUrl = new URL("file://" + System.getProperty("user.dir") + "/" + xmlFile) // ClassLoader.getSystemResource(xmlFile)
-        validator.validate(new StreamSource(xmlUrl.openStream()))
-        exceptions.foreach(println(_))
-        println("Number of exceptions: " + exceptions.length)
-        (xmlFile, exceptions.length)
+      val schema =
+        schemaFactory.newSchema(new StreamSource(schemaUrl.openStream()))
+
+      def validateFile(xmlFile: String): (String, List[String]) = {
+        var exceptions = List[String]()
+
+        try {
+          val validator = schema.newValidator()
+
+          validator.setErrorHandler(new ErrorHandler() {
+            override def warning(exception: SAXParseException): Unit =
+              exceptions = exception.getMessage :: exceptions
+
+            override def fatalError(exception: SAXParseException): Unit =
+              exceptions = exception.getMessage :: exceptions
+
+            override def error(exception: SAXParseException): Unit =
+              exceptions = exception.getMessage :: exceptions
+          })
+
+          val xmlUrl =
+            new URL("file://" + System.getProperty("user.dir") + "/" + xmlFile)
+
+          validator.validate(new StreamSource(xmlUrl.openStream()))
+
+          (xmlFile, exceptions.reverse)
+
+        } catch {
+          case ex: Exception =>
+            (xmlFile, (exceptions.reverse :+ ex.getMessage).distinct)
+        }
       }
-      val results = for (xmlFile <- xmlFiles) yield validateFile(xmlFile)
-      val resultMap = results.toMap
-      val filesWithExceptions = resultMap.filter(_._2 >= 1).toVector
-      if (filesWithExceptions.length == 0) {
-        println("All files adhere to the schema.")
+
+      val results = xmlFiles.map(validateFile)
+      val failed = results.filter { case (_, messages) => messages.nonEmpty }
+
+      if (failed.isEmpty) {
+        println(s"All ${xmlFiles.length} files adhere to the schema.")
+        0
       } else {
-        println("Out of the " + xmlFiles.length + " files " + filesWithExceptions.length + " do not adhere to the schema")
-        val exceptionDescriptions = filesWithExceptions.map(x =>  x._1 + ": " + x._2 + " errors")
-        val exceptionDescription = exceptionDescriptions.reduceLeft(_ + "\n" + _)
-        println(exceptionDescription)
+        println(s"${failed.length} of ${xmlFiles.length} files failed validation:\n")
+
+        failed.foreach { case (file, messages) =>
+          println(s"Validate: $file")
+          messages.foreach(println)
+          println("Number of exceptions: " + messages.length)
+          println()
+        }
+
+        1
       }
 
     } catch {
-      case ex => {
+      case ex: Exception =>
         println("Exception in the validation.")
         println("Exception message: " + ex.getMessage)
-      }
+        2
     }
   }
-
 }
