@@ -8,6 +8,9 @@ Usage example
 mill run parla-clarin.xsd ../riksdagen-records/data/1971/prot-1971--00*.xml test.xml Parla-CLARIN-Exemplar.xml
 ```
 
+Some environments might require running mill with `./mill`.
+
+
 Dependencies
 
 - Scala 2.13.11
