@@ -8,6 +8,10 @@ import javax.xml.validation.{Schema, SchemaFactory, Validator}
 import org.xml.sax.{ErrorHandler, SAXParseException}
 import java.net.URL 
 
+object ValidationResult extends Enumeration {
+  type ValidationResult = Value
+  val Pass, Fail, ValidationError = Value
+}
 
 object Main {
 
@@ -17,12 +21,16 @@ object Main {
       sys.exit(2)
     }
 
-    val exitCode = validate(args.tail, args.head)
-    sys.exit(exitCode)
+    val validationResult = validate(args.tail, args.head)
+    validationResult match {
+      case ValidationResult.Pass => sys.exit(0)
+      case ValidationResult.Fail => sys.exit(1)
+      case _ => sys.exit(2)
+    }
 
   }
 
-  def validate(xmlFiles: Array[String], xsdFile: String): Int = {
+  def validate(xmlFiles: Array[String], xsdFile: String): ValidationResult.ValidationResult = {
 
     try {
       val schemaFactory = SchemaFactory.newInstance(XMLConstants.W3C_XML_SCHEMA_NS_URI)
@@ -66,29 +74,29 @@ object Main {
       }
 
       val results = xmlFiles.map(validateFile)
-      val failed = results.filter { case (_, messages) => messages.nonEmpty }
+      val failed = results.filter( _._2.nonEmpty )
 
       if (failed.isEmpty) {
         println(s"All ${xmlFiles.length} files adhere to the schema.")
-        0
+        ValidationResult.Pass
       } else {
         println(s"${failed.length} of ${xmlFiles.length} files failed validation:\n")
 
         failed.foreach { case (file, messages) =>
-          println(s"Validate: $file")
-          messages.foreach(println)
-          println("Number of exceptions: " + messages.length)
-          println()
+          Console.err.println(s"Validate: $file")
+          messages.foreach(Console.err.println)
+          Console.err.println("Number of exceptions: " + messages.length)
+          Console.err.println()
         }
 
-        1
+        ValidationResult.Fail
       }
 
     } catch {
       case ex: Exception =>
-        println("Exception in the validation.")
-        println("Exception message: " + ex.getMessage)
-        2
+        Console.err.println("Exception in the validation.")
+        Console.err.println("Exception message: " + ex.getMessage)
+        ValidationResult.ValidationError
     }
   }
 }
