@@ -22,6 +22,7 @@ object Main {
     }
 
     val validationResult = validate(args.tail, args.head)
+    println("Validation result: " + validationResult)
     validationResult match {
       case ValidationResult.Pass => sys.exit(0)
       case ValidationResult.Fail => sys.exit(1)
