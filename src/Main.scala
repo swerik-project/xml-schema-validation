@@ -12,6 +12,7 @@ object ValidationResult extends Enumeration {
   type ValidationResult = Value
   val Pass, Fail, ValidationError = Value
 }
+import ValidationResult._
 
 object Main {
 
@@ -24,14 +25,14 @@ object Main {
     val validationResult = validate(args.tail, args.head)
     println("Validation result: " + validationResult)
     validationResult match {
-      case ValidationResult.Pass => sys.exit(0)
-      case ValidationResult.Fail => sys.exit(1)
+      case Pass => sys.exit(0)
+      case Fail => sys.exit(1)
       case _ => sys.exit(2)
     }
 
   }
 
-  def validate(xmlFiles: Array[String], xsdFile: String): ValidationResult.ValidationResult = {
+  def validate(xmlFiles: Array[String], xsdFile: String): ValidationResult = {
 
     try {
       val schemaFactory = SchemaFactory.newInstance(XMLConstants.W3C_XML_SCHEMA_NS_URI)
@@ -70,7 +71,7 @@ object Main {
 
       if (failed.isEmpty) {
         println(s"All ${xmlFiles.length} file(s) adhere to the schema $xsdFile.")
-        ValidationResult.Pass
+        Pass
       } else {
         println(s"${failed.length} of ${xmlFiles.length} file(s) failed validation:\n")
         failed.foreach { case (file, messages) =>
@@ -79,7 +80,7 @@ object Main {
           Console.err.println(s"Number of exceptions in $file: " + messages.length)
           Console.err.println()
         }
-        ValidationResult.Fail
+        Fail
       }
     // If the validation itself fails
     } catch {
@@ -87,7 +88,7 @@ object Main {
         Console.err.println("Error: unable to run the validation due to the following exception:")
         Console.err.println(ex.getMessage)
         Console.err.println()
-        ValidationResult.ValidationError
+        ValidationError
     }
   }
 }
