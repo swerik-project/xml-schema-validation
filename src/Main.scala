@@ -51,11 +51,11 @@ object Main {
           val validator = schema.newValidator()
           validator.setErrorHandler(new ErrorHandler() {
             @Override
-            def warning(exception: SAXParseException) = exceptions = exception.getMessage :: exceptions
+            def warning(exception: SAXParseException) = exceptions = exception.toString :: exceptions
             @Override
-            def fatalError(exception: SAXParseException) = exceptions = exception.getMessage :: exceptions
+            def fatalError(exception: SAXParseException) = exceptions = exception.toString :: exceptions
             @Override
-            def error(exception: SAXParseException) = exceptions = exception.getMessage :: exceptions
+            def error(exception: SAXParseException) = exceptions = exception.toString :: exceptions
           })
           val xmlUrl = new URL("file://" + userDir + "/" + xmlFile)
           validator.validate(new StreamSource(xmlUrl.openStream()))
